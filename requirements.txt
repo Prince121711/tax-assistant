@@ -1,0 +1,39 @@
+# ============================================================
+#  TaxShield – Python Dependencies
+#  Install with: pip install -r requirements.txt
+# ============================================================
+
+# ── Web Framework ─────────────────────────────────────────────
+fastapi==0.111.0
+uvicorn[standard]==0.29.0          # ASGI server to run FastAPI
+python-multipart==0.0.9            # Required for file uploads in FastAPI
+
+# ── Database ──────────────────────────────────────────────────
+sqlalchemy==2.0.30                 # ORM (models, queries)
+pymysql==1.1.1                     # MySQL driver (used in DATABASE_URL)
+cryptography==42.0.7               # Required by pymysql for secure connections
+
+# ── Data Validation ───────────────────────────────────────────
+pydantic==2.7.1                    # Request/response schema validation (used in schemas.py)
+
+# ── Environment Config ────────────────────────────────────────
+python-dotenv==1.0.1               # Loads .env file for DATABASE_URL, secrets
+
+# ── OCR (Bill Scanning) ───────────────────────────────────────
+easyocr==1.7.1                     # OCR engine used in ocr.py
+opencv-python==4.9.0.80            # Image preprocessing (grayscale, threshold, deskew)
+numpy==1.26.4                      # Required by OpenCV and EasyOCR
+Pillow==10.3.0                     # Image handling support
+
+# ── Voice Transcription ───────────────────────────────────────
+openai-whisper==20231117           # Speech-to-text used in voice.py
+torch==2.3.0                       # Required backend for Whisper
+
+# ── Bank Statement Parsing ────────────────────────────────────
+pdfplumber==0.11.1                 # PDF text extraction used in bank_parser.py
+
+# ── PDF Report Generation ─────────────────────────────────────
+reportlab==4.1.0                   # PDF generation used in report_generator.py
+
+# ── CORS / HTTP ───────────────────────────────────────────────
+httpx==0.27.0                      # Optional: for async HTTP calls / testing

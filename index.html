@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TaxShield – Merchant Dashboard</title>
+  <link rel="stylesheet" href="style.css" />
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+</head>
+
+<body>
+<div class="app-layout">
+
+  <!-- ═══════════════════════════════════════════ TOPBAR ══ -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <svg class="shield-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.35C17.25 22.15 21 17.25 21 12V6L12 2z"/>
+      </svg>
+      TaxShield
+    </div>
+    <div class="topbar-meta">
+      <span id="current-date"></span>
+      <div class="user-badge">
+        <span class="user-dot"></span>
+        <span id="topbar-name">Merchant</span>
+      </div>
+      <div class="user-badge" style="background:rgba(232,160,32,0.08);border-color:rgba(232,160,32,0.2)">
+        <span style="color:var(--accent-gold);font-size:0.75rem" id="topbar-shop"></span>
+      </div>
+      <button onclick="logout()" title="Sign Out"
+        style="background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.25);
+               color:#ef4444;border-radius:6px;padding:0.3rem 0.75rem;
+               font-size:0.78rem;cursor:pointer;font-family:var(--font-body)">
+        Sign Out
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════ SIDEBAR ══ -->
+  <aside class="sidebar">
+
+    <div class="nav-section-label">Overview</div>
+
+    <div class="nav-item active" data-nav="dashboard" onclick="navigate('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
+      </svg>
+      Dashboard
+    </div>
+
+    <div class="nav-item" data-nav="analyze" onclick="navigate('analyze')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+      </svg>
+      AI Analysis
+    </div>
+
+    <div class="nav-section-label">Transactions</div>
+
+    <div class="nav-item" data-nav="income" onclick="navigate('income')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="19" x2="12" y2="5"/>
+        <polyline points="5 12 12 5 19 12"/>
+      </svg>
+      Income
+    </div>
+
+    <div class="nav-item" data-nav="expense" onclick="navigate('expense')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="12" y1="5" x2="12" y2="19"/>
+        <polyline points="19 12 12 19 5 12"/>
+      </svg>
+      Expenses
+    </div>
+
+    <div class="nav-item" data-nav="gst" onclick="navigate('gst')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+      </svg>
+      GST
+    </div>
+
+    <div class="nav-section-label">Capture</div>
+
+    <div class="nav-item" data-nav="scan" onclick="navigate('scan')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/>
+      </svg>
+      Scan Bill
+    </div>
+
+    <div class="nav-item" data-nav="voice" onclick="navigate('voice')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/>
+        <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/>
+      </svg>
+      Voice Entry
+    </div>
+
+    <div class="nav-item" data-nav="bank" onclick="navigate('bank')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="5" width="20" height="14" rx="2"/>
+        <line x1="2" y1="10" x2="22" y2="10"/>
+      </svg>
+      Bank Statement
+    </div>
+
+    <div class="nav-section-label">Reports</div>
+
+    <div class="nav-item" data-nav="reports" onclick="navigate('reports')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+      </svg>
+      Reports
+    </div>
+
+  </aside>
+
+  <!-- ═══════════════════════════════════════ MAIN CONTENT ══ -->
+  <main class="main-content">
+
+    <!-- ── Dashboard ───────────────────────────────────────── -->
+    <section id="section-dashboard" class="section active">
+      <div class="section-header">
+        <h1 class="section-title">Dashboard</h1>
+        <p class="section-subtitle">Your financial overview at a glance</p>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card" style="--card-accent: var(--accent-green)">
+          <div class="card-label">Total Income</div>
+          <div class="card-value positive" id="dash-income">—</div>
+          <div class="card-sub">All recorded sources</div>
+        </div>
+        <div class="summary-card" style="--card-accent: var(--accent-red)">
+          <div class="card-label">Total Expenses</div>
+          <div class="card-value" id="dash-expense">—</div>
+          <div class="card-sub">All recorded expenses</div>
+        </div>
+        <div class="summary-card" style="--card-accent: var(--accent-blue)">
+          <div class="card-label">Net Profit</div>
+          <div class="card-value" id="dash-profit">—</div>
+          <div class="card-sub">Income minus expenses</div>
+        </div>
+        <div class="summary-card" style="--card-accent: var(--accent-gold)">
+          <div class="card-label">Est. Tax (5%)</div>
+          <div class="card-value gold" id="dash-tax">—</div>
+          <div class="card-sub">Presumptive scheme</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
+          </svg>
+          Financial Chart
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="dashboard-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── AI Analysis ──────────────────────────────────────── -->
+    <section id="section-analyze" class="section">
+      <div class="section-header">
+        <h1 class="section-title">AI Analysis</h1>
+        <p class="section-subtitle">Rule-based risk detection and spending insights</p>
+      </div>
+
+      <div class="summary-grid">
+        <div class="summary-card">
+          <div class="card-label">Income</div>
+          <div class="card-value positive" id="analysis-income">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">Expense</div>
+          <div class="card-value" id="analysis-expense">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">Profit</div>
+          <div class="card-value" id="analysis-profit">—</div>
+        </div>
+        <div class="summary-card">
+          <div class="card-label">GST Payable</div>
+          <div class="card-value" id="analysis-gst">—</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Risk Level</div>
+        <div class="card-value" id="analysis-risk" style="font-size:1.6rem">—</div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Alerts</div>
+        <div id="analysis-alerts"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Suggestions</div>
+        <div id="analysis-suggestions"></div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Spending Breakdown</div>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:1rem">
+          Top category: <strong id="spending-top">—</strong>
+        </p>
+        <div class="chart-wrapper">
+          <canvas id="category-chart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Income ───────────────────────────────────────────── -->
+    <section id="section-income" class="section">
+      <div class="section-header">
+        <h1 class="section-title">Income</h1>
+        <p class="section-subtitle">Record and review all income entries</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+          </svg>
+          Add Income
+        </div>
+        <form id="income-form" onsubmit="return false">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Amount (₹) *</label>
+              <input id="income-amount" type="number" class="form-input" placeholder="5000" min="0" step="0.01" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Source *</label>
+              <input id="income-source" type="text" class="form-input" placeholder="UPI / Cash / Bank Transfer" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input id="income-date" type="date" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select id="income-category" class="form-select">
+                <option value="">Select…</option>
+                <option>Sales</option><option>Service</option><option>Rental</option>
+                <option>Investment</option><option>Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">GST Collected (₹)</label>
+              <input id="income-gst" type="number" class="form-input" placeholder="0.00" min="0" step="0.01" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addIncome(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Income
+          </button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Income History</div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Source</th><th>Category</th>
+                <th>Amount</th><th>GST</th>
+              </tr>
+            </thead>
+            <tbody id="income-table-body">
+              <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
+                Click "Add Income" or navigate here to load records.
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:1rem">
+          <button class="btn btn-secondary btn-sm" onclick="loadIncomeList()">Refresh</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Expenses ─────────────────────────────────────────── -->
+    <section id="section-expense" class="section">
+      <div class="section-header">
+        <h1 class="section-title">Expenses</h1>
+        <p class="section-subtitle">Track all business expenditures</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Add Expense</div>
+        <form id="expense-form" onsubmit="return false">
+          <div class="form-grid">
+            <div class="form-group">
+              <label class="form-label">Item *</label>
+              <input id="expense-item" type="text" class="form-input" placeholder="Rice, Petrol, Rent…" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amount (₹) *</label>
+              <input id="expense-amount" type="number" class="form-input" placeholder="250" min="0" step="0.01" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input id="expense-date" type="date" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select id="expense-category" class="form-select">
+                <option value="">Auto-detect</option>
+                <option>Groceries</option><option>Transport</option><option>Utilities</option>
+                <option>Rent</option><option>Salary</option><option>Repairs</option>
+                <option>Medical</option><option>Marketing</option><option>Others</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">GST Paid (₹)</label>
+              <input id="expense-gst" type="number" class="form-input" placeholder="0.00" min="0" step="0.01" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="addExpense(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Add Expense
+          </button>
+        </form>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Expense History</div>
+        <div style="overflow-x:auto">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Date</th><th>Item</th><th>Category</th>
+                <th>Amount</th><th>GST</th>
+              </tr>
+            </thead>
+            <tbody id="expense-table-body">
+              <tr><td colspan="5" style="text-align:center;color:var(--text-muted);padding:2rem">
+                Click "Add Expense" or Refresh to load records.
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="margin-top:1rem">
+          <button class="btn btn-secondary btn-sm" onclick="loadExpenseList()">Refresh</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── GST ──────────────────────────────────────────────── -->
+    <section id="section-gst" class="section">
+      <div class="section-header">
+        <h1 class="section-title">GST Summary</h1>
+        <p class="section-subtitle">Input vs output GST and net liability</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">GST Overview</div>
+        <button class="btn btn-primary" onclick="loadGSTSummary(this)">Load GST Summary</button>
+        <div class="summary-grid" style="margin-top:1.5rem">
+          <div class="summary-card" style="--card-accent: var(--accent-green)">
+            <div class="card-label">Output GST (Sales)</div>
+            <div class="card-value gold" id="gst-output">—</div>
+            <div class="card-sub">Collected from customers</div>
+          </div>
+          <div class="summary-card" style="--card-accent: var(--accent-blue)">
+            <div class="card-label">Input GST (Purchases)</div>
+            <div class="card-value" id="gst-input">—</div>
+            <div class="card-sub">Paid to suppliers</div>
+          </div>
+          <div class="summary-card" style="--card-accent: var(--accent-red)">
+            <div class="card-label">Net GST Payable</div>
+            <div class="card-value" id="gst-payable">—</div>
+            <div class="card-sub">Output minus Input</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Quick GST Calculator</div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Output GST (₹)</label>
+            <input id="calc-output" type="number" class="form-input" placeholder="0.00" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Input GST (₹)</label>
+            <input id="calc-input" type="number" class="form-input" placeholder="0.00" />
+          </div>
+        </div>
+        <button class="btn btn-secondary" onclick="
+          const out = parseFloat(document.getElementById('calc-output').value)||0;
+          const inp = parseFloat(document.getElementById('calc-input').value)||0;
+          document.getElementById('calc-result').textContent = '₹ ' + (out-inp).toLocaleString('en-IN',{minimumFractionDigits:2});
+        ">Calculate</button>
+        <div style="margin-top:1rem;font-size:1.25rem;color:var(--accent-gold)" id="calc-result"></div>
+      </div>
+    </section>
+
+    <!-- ── Scan Bill ─────────────────────────────────────────── -->
+    <section id="section-scan" class="section">
+      <div class="section-header">
+        <h1 class="section-title">Scan Bill</h1>
+        <p class="section-subtitle">Capture a live photo or upload a bill image — OCR extracts vendor, amount and GST</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          Bill Scanner
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab('scan','file')">
+            📁 Upload File
+          </button>
+          <button class="tab-btn" onclick="switchTab('scan','camera')">
+            📷 Live Camera
+          </button>
+        </div>
+
+        <!-- FILE UPLOAD tab -->
+        <div id="scan-tab-file" class="tab-panel active">
+          <label class="upload-zone">
+            <input type="file" id="bill-file" accept="image/jpeg,image/png,image/webp,image/gif" />
+            <div class="upload-icon">🧾</div>
+            <div class="upload-text">Drag & drop or click to select a bill image</div>
+            <div class="upload-hint">Supports JPG · PNG · WEBP — Max 10 MB</div>
+          </label>
+          <div style="margin-top:1rem">
+            <button class="btn btn-primary" onclick="scanBillFromFile(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              Scan Bill
+            </button>
+          </div>
+        </div>
+
+        <!-- LIVE CAMERA tab -->
+        <div id="scan-tab-camera" class="tab-panel">
+          <div class="camera-container" id="camera-box">
+            <div class="camera-placeholder" id="camera-placeholder">
+              <span class="icon">📷</span>
+              <span>Camera not started</span>
+            </div>
+            <video id="camera-video" class="camera-video" autoplay playsinline style="display:none"></video>
+          </div>
+
+          <canvas id="camera-canvas" class="camera-canvas"></canvas>
+          <img id="camera-snapshot" class="camera-snapshot-preview" alt="Captured bill" />
+
+          <div class="camera-controls">
+            <button class="btn btn-secondary" id="btn-start-camera" onclick="startCamera()">
+              🎥 Start Camera
+            </button>
+            <button class="btn btn-primary" id="btn-capture" onclick="capturePhoto()" style="display:none">
+              📸 Capture Photo
+            </button>
+            <button class="btn btn-secondary" id="btn-retake" onclick="retakePhoto()" style="display:none">
+              🔄 Retake
+            </button>
+            <button class="btn btn-primary" id="btn-scan-live" onclick="scanBillFromCamera(this)" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              Scan This Photo
+            </button>
+            <button class="btn btn-danger btn-sm" id="btn-stop-camera" onclick="stopCamera()" style="display:none">
+              ✕ Stop Camera
+            </button>
+          </div>
+        </div>
+
+        <div id="ocr-result" style="margin-top:0.5rem"></div>
+      </div>
+    </section>
+
+    <!-- ── Voice ─────────────────────────────────────────────── -->
+    <section id="section-voice" class="section">
+      <div class="section-header">
+        <h1 class="section-title">Voice Entry</h1>
+        <p class="section-subtitle">Record live or upload an audio file — Whisper AI extracts item and amount</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+          Voice Expense
+        </div>
+
+        <div class="alert-box info" style="margin-bottom:1.25rem">
+          💡 Say something like: <em>"Bought rice for two hundred rupees"</em>
+        </div>
+
+        <!-- Tab bar -->
+        <div class="tab-bar">
+          <button class="tab-btn active" onclick="switchTab('voice','file')">
+            📁 Upload File
+          </button>
+          <button class="tab-btn" onclick="switchTab('voice','record')">
+            🎙️ Live Record
+          </button>
+        </div>
+
+        <!-- FILE UPLOAD tab -->
+        <div id="voice-tab-file" class="tab-panel active">
+          <label class="upload-zone">
+            <input type="file" id="voice-file" accept="audio/wav,audio/mpeg,audio/mp3,audio/m4a,audio/ogg,audio/*" />
+            <div class="upload-icon">🎵</div>
+            <div class="upload-text">Drag & drop or click to select an audio file</div>
+            <div class="upload-hint">Supports WAV · MP3 · M4A · OGG — Max 25 MB</div>
+          </label>
+          <div style="margin-top:1rem">
+            <button class="btn btn-primary" onclick="uploadVoiceFile(this)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+              Process Audio File
+            </button>
+          </div>
+        </div>
+
+        <!-- LIVE RECORD tab -->
+        <div id="voice-tab-record" class="tab-panel">
+          <div class="recorder-container">
+
+            <!-- Visualiser bars -->
+            <div class="recorder-visualiser" id="recorder-visualiser">
+              <!-- 16 bars injected by JS -->
+            </div>
+
+            <div class="recorder-timer" id="recorder-timer">00:00</div>
+
+            <div class="recorder-status" id="recorder-status">
+              Press the mic button to start recording
+            </div>
+
+            <div class="recorder-controls">
+              <button class="btn-mic" id="btn-mic" onclick="toggleRecording()" title="Start / Stop recording">
+                🎙️
+              </button>
+            </div>
+
+            <!-- Playback after recording -->
+            <audio id="recording-playback" class="recording-playback" controls></audio>
+          </div>
+
+          <div style="margin-top:1rem" id="send-recording-wrap" style="display:none">
+            <button class="btn btn-primary" id="btn-send-recording" onclick="sendRecording(this)" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+              Send Recording to AI
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="discardRecording()" id="btn-discard" style="display:none;margin-left:0.5rem">
+              🗑 Discard
+            </button>
+          </div>
+        </div>
+
+        <div id="voice-result" style="margin-top:0.75rem"></div>
+      </div>
+    </section>
+
+    <!-- ── Bank Statement ────────────────────────────────────── -->
+    <section id="section-bank" class="section">
+      <div class="section-header">
+        <h1 class="section-title">Bank Statement</h1>
+        <p class="section-subtitle">Import income automatically from your bank statement PDF</p>
+      </div>
+
+      <div class="panel">
+        <div class="panel-title">Upload Statement</div>
+        <div class="alert-box info" style="margin-bottom:1rem">
+          💡 The parser detects UPI credits, NEFT/IMPS transfers and all credit entries automatically.
+        </div>
+        <label class="upload-zone">
+          <input type="file" id="bank-file" accept=".pdf" />
+          <div class="upload-icon">🏦</div>
+          <div class="upload-text">Drag & drop or click to select your bank statement</div>
+          <div class="upload-hint">PDF format only · Max 20 MB</div>
+        </label>
+        <div style="margin-top:1rem">
+          <button class="btn btn-primary" onclick="uploadBankStatement(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Import Statement
+          </button>
+        </div>
+        <div id="bank-result"></div>
+      </div>
+    </section>
+
+    <!-- ── Reports ───────────────────────────────────────────── -->
+    <section id="section-reports" class="section">
+      <div class="section-header">
+        <h1 class="section-title">Reports & ITR Forms</h1>
+        <p class="section-subtitle">Generate financial reports and pre-filled Indian ITR forms from your TaxShield data</p>
+      </div>
+
+      <!-- Financial Summary Report -->
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+          TaxShield Financial Summary Report
+        </div>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:1.25rem">
+          Branded PDF with income summary, expense breakdown, profit/loss, estimated tax, and financial alerts.
+        </p>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="generateReport(this)">📄 Generate Report</button>
+          <button class="btn btn-secondary" onclick="downloadReport()">⬇ Download PDF</button>
+        </div>
+        <div id="report-status" style="margin-top:1rem"></div>
+      </div>
+
+      <!-- ITR-4 Sugam -->
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+          ITR-4 SUGAM — Presumptive Income Form
+        </div>
+        <div class="alert-box info" style="margin-bottom:1rem">
+          ✅ <strong>Use ITR-4 if:</strong> Your business turnover is ≤ ₹2 Crore and you want to declare income
+          at 8% of turnover (Section 44AD). Best for small shops, traders, and small service businesses.
+        </div>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:1rem">
+          Auto-fills: Name, business details, gross turnover, presumptive profit (8%), 
+          tax computation with new regime slabs, GST summary, and verification declaration.
+        </p>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="generateITR4(this)">📋 Generate ITR-4 Draft</button>
+          <button class="btn btn-secondary" onclick="downloadITR4()">⬇ Download ITR-4 PDF</button>
+        </div>
+        <div id="itr4-status" style="margin-top:1rem"></div>
+      </div>
+
+      <!-- ITR-3 -->
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          ITR-3 — Business Income with Books of Accounts
+        </div>
+        <div class="alert-box info" style="margin-bottom:1rem">
+          ✅ <strong>Use ITR-3 if:</strong> Your turnover exceeds ₹2 Crore, or you maintain
+          full books of accounts and do NOT want to use the presumptive scheme.
+        </div>
+        <p style="color:var(--text-secondary);font-size:0.85rem;margin-bottom:1rem">
+          Auto-fills: P&L Account, simplified Balance Sheet, business income schedule,
+          tax computation, expense category breakdown, and verification.
+        </p>
+        <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+          <button class="btn btn-primary" onclick="generateITR3(this)">📋 Generate ITR-3 Draft</button>
+          <button class="btn btn-secondary" onclick="downloadITR3()">⬇ Download ITR-3 PDF</button>
+        </div>
+        <div id="itr3-status" style="margin-top:1rem"></div>
+      </div>
+
+      <!-- Email Report -->
+      <div class="panel">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+          Email Report to CA / Self / Government
+        </div>
+
+        <div class="alert-box info" style="margin-bottom:1rem">
+          📧 Send your generated report PDF directly to your email, your CA's email,
+          or keep it for official reference. Generate the report first, then email it.
+        </div>
+
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Report to Send *</label>
+            <select id="email-report-type" class="form-select no-icon">
+              <option value="financial">📄 Financial Summary Report</option>
+              <option value="itr4">📋 ITR-4 Sugam Draft</option>
+              <option value="itr3">📋 ITR-3 Draft</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Recipient Name *</label>
+            <input id="email-to-name" class="form-input no-icon" type="text"
+                   placeholder="e.g. My CA Name / Self" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Recipient Email *</label>
+            <input id="email-to" class="form-input no-icon" type="email"
+                   placeholder="recipient@gmail.com" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">CC Email <span style="color:var(--text-muted);font-size:0.72rem">(optional)</span></label>
+            <input id="email-cc" class="form-input no-icon" type="email"
+                   placeholder="cc@gmail.com" />
+          </div>
+        </div>
+
+        <!-- Quick fill buttons -->
+        <div style="margin-bottom:1rem">
+          <p style="color:var(--text-muted);font-size:0.75rem;margin-bottom:0.5rem">Quick fill recipient:</p>
+          <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm"
+              onclick="quickFill('myself')">📧 Send to Myself</button>
+            <button class="btn btn-secondary btn-sm"
+              onclick="quickFill('ca')">👨‍💼 Send to My CA</button>
+            <button class="btn btn-secondary btn-sm"
+              onclick="quickFill('govt')">🏛 Income Tax Dept</button>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" id="btn-send-email" onclick="sendReportEmail(this)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15">
+            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+            <polyline points="22,6 12,13 2,6"/>
+          </svg>
+          Send Email
+        </button>
+
+        <div id="email-status" style="margin-top:1rem"></div>
+      </div>
+
+      <!-- Which ITR guide -->
+      <div class="panel">
+        <div class="panel-title">❓ Which ITR Form Should I Use?</div>
+        <table class="data-table">
+          <thead><tr><th>Condition</th><th>Use</th><th>Section</th></tr></thead>
+          <tbody>
+            <tr><td>Small business, turnover ≤ ₹2 Cr, want simple 8% profit declaration</td>
+                <td><span class="badge badge-success">ITR-4 Sugam</span></td>
+                <td>Sec 44AD</td></tr>
+            <tr><td>Professional (doctor/lawyer/CA), receipts ≤ ₹50 L</td>
+                <td><span class="badge badge-success">ITR-4 Sugam</span></td>
+                <td>Sec 44ADA</td></tr>
+            <tr><td>Transport business (goods carriage vehicles)</td>
+                <td><span class="badge badge-success">ITR-4 Sugam</span></td>
+                <td>Sec 44AE</td></tr>
+            <tr><td>Turnover > ₹2 Cr OR maintains full books of accounts</td>
+                <td><span class="badge badge-warning">ITR-3</span></td>
+                <td>Sec 44AB</td></tr>
+            <tr><td>Capital gains, multiple income sources</td>
+                <td><span class="badge badge-warning">ITR-3</span></td>
+                <td>—</td></tr>
+          </tbody>
+        </table>
+        <p style="color:var(--text-muted);font-size:0.75rem;margin-top:0.75rem">
+          ⚠ These are pre-filled drafts only. Always verify with a Chartered Accountant before e-filing 
+          on the official IT portal: <strong>https://www.incometax.gov.in</strong>
+        </p>
+      </div>
+    </section>
+
+  </main><!-- end main-content -->
+</div><!-- end app-layout -->
+
+<!-- ── Toast container ──────────────────────────────────────── -->
+<div id="toast-container" class="toast-container"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
