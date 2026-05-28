@@ -111,7 +111,8 @@ def generate_itr3(
     W = 17.4 * cm
 
     def style(name, **kw):
-        return ParagraphStyle(name, fontName="Helvetica", **kw)
+        fontName = kw.pop('fontName', "Helvetica")
+        return ParagraphStyle(name, fontName=fontName, **kw)
 
     H1   = style("h1", fontSize=13, textColor=WHITE, fontName="Helvetica-Bold",
                  alignment=TA_CENTER, spaceAfter=2)

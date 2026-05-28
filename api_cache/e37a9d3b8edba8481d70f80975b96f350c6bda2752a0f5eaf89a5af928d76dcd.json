@@ -1,0 +1,53 @@
+{
+  "vendor_name": "ANBU AGENCIES",
+  "vendor_phone": "9524476002",
+  "vendor_gstin": "33BSPPA3419R1ZD",
+  "invoice_no": "GSX41211",
+  "date": "2026-05-20",
+  "bill_type": "tax_invoice",
+  "items": [
+    {
+      "name": "CLINIC PLUS STRONG&SHINE SHMP 6 ML",
+      "qty": 32,
+      "unit": "ML",
+      "rate": 0.76,
+      "amount": 24.74
+    },
+    {
+      "name": "CF STRONG&LONG SH SOUTH 6ML",
+      "qty": 80,
+      "unit": "ML",
+      "rate": 0.76,
+      "amount": 62.81
+    },
+    {
+      "name": "CUP SF TP 45G 6+1 FR ONHG EC TRADEOFF",
+      "qty": 12,
+      "unit": "G",
+      "rate": 17.32,
+      "amount": 213.81
+    },
+    {
+      "name": "DOVE HAIRFALL RES+ SH BIOPRO CARE 6ML",
+      "qty": 32,
+      "unit": "ML",
+      "rate": 1.46,
+      "amount": 47.33
+    },
+    {
+      "name": "SUNSILK BLACK SHINE+ SH-VITA-PRO FOR 6ML",
+      "qty": 64,
+      "unit": "ML",
+      "rate": 0.75,
+      "amount": 48.96
+    }
+  ],
+  "subtotal": 378.72,
+  "discount": 9.19,
+  "cgst": 9.47,
+  "sgst": 9.47,
+  "igst": null,
+  "total_tax": 18.94,
+  "total_amount": 398.0,
+  "currency": "INR"
+}

@@ -98,7 +98,7 @@ class Expense(Base):
     user_id    = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     item       = Column(String(100), nullable=False)
     amount     = Column(Float,  nullable=False)
-    date       = Column(Date,   nullable=False, default=date_type.today)
+    date       = Column(Date,   nullable=True, default=date_type.today)  # Allow NULL if date extraction fails
     gst        = Column(Float,  nullable=False, default=0.0)
     category   = Column(String(50),  nullable=True,  default="Others")
     created_at = Column(DateTime, server_default=func.now())

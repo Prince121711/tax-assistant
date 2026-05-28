@@ -9,24 +9,30 @@ import os
 import uuid
 import shutil
 import logging
+from datetime import date as calendar_date
 from pathlib import Path
 
 from fastapi import FastAPI, Depends, UploadFile, File, HTTPException, Query, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+import calendar
 import models
 import schemas
 import crud
 from database import engine, get_db
 from voice import process_voice_expense
 from bank_parser import extract_bank_income
-from ocr import extract_bill_data
+from ocr_engine import process_bill, is_supported_image, get_api_quality_stats, clear_api_cache
 from insights_service import analyze_spending_pattern
 from analysis_service import analyze_financials
 from categorizer import categorize_expense
 from auth import hash_password, verify_password, create_access_token
+from dotenv import load_dotenv
+load_dotenv("api.env")  # Load email config
+load_dotenv(".env")     # Then load other config
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -69,6 +75,39 @@ app.add_middleware(
 @app.get("/", tags=["Health"])
 def root():
     return {"message": "TaxShield API is running", "version": "1.0.0"}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# API MONITORING & QUALITY METRICS
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/quality-stats", tags=["Monitoring"])
+def get_quality_stats():
+    """
+    Get current OCR/Vision API quality metrics.
+    Useful for monitoring dashboard to detect when quota is exhausted.
+    
+    Response:
+      - total_requests: Total number of extraction attempts
+      - success_rate_pct: Percentage of successful extractions
+      - vision_api_failures: Count of API errors (including rate limits)
+      - regex_fallbacks: Count of fallbacks to regex (lower quality)
+      
+    When success_rate_pct drops below 50%, it typically means:
+      - Gemini API quota is exhausted
+      - Need to switch to cached results or alternative provider
+    """
+    return get_api_quality_stats()
+
+
+@app.post("/api/cache/clear", tags=["Admin"])
+def clear_cache():
+    """
+    Manually clear the OCR extraction cache.
+    Useful for testing or when quota resets.
+    WARNING: This will force re-extraction of all scanned bills.
+    """
+    return clear_api_cache()
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -291,7 +330,7 @@ def delete_expense(expense_id: int, db: Session = Depends(get_db)):
 
 @app.post("/scan-bill", tags=["Upload"])
 async def scan_bill(
-    user_id: int,
+    user_id: int = Query(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -300,10 +339,15 @@ async def scan_bill(
       - File upload  (JPEG / PNG / WEBP / BMP / TIFF / GIF)
       - Live camera  (JPEG blob from canvas.toBlob())
 
-    Runs OCR and saves the detected expense automatically.
-    """
-    from ocr import is_supported_image
+    OCR pipeline (auto-routed by script detection):
+      • English bills → PaddleOCR           (best Latin/digit accuracy)
+      • Tamil bills   → Tesseract tam+eng   (only engine with Tamil support)
+      • Mixed bills   → Tesseract + PaddleOCR combined
+      • All bills     → Gemini Vision API   (structured field extraction)
+      • No Tesseract  → PaddleOCR + Gemini Vision (graceful fallback)
 
+    Saves the detected expense to the database automatically.
+    """
     content_type = file.content_type or "application/octet-stream"
 
     # Accept any image format + octet-stream (canvas blob fallback)
@@ -328,28 +372,79 @@ async def scan_bill(
     # Detect source: live camera sends filename "live_capture.jpg"
     source = "live_camera" if (file.filename or "").startswith("live_capture") else "upload"
 
-    result = extract_bill_data(str(file_path), source=source)
+    # ── OCR engine (PaddleOCR + Gemini Vision) ────────────────────────────
+    ocr_result = process_bill(str(file_path), use_vision=True, use_ocr=True)
 
-    if result.get("amount"):
-        category = categorize_expense(result.get("vendor", ""))
+    # Check for Gemini 429 rate-limit error propagated from ocr_engine
+    _ocr_error = ocr_result.get("error", "")
+    if isinstance(_ocr_error, str) and "429" in _ocr_error:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Gemini Vision API quota exhausted (429). Please retry in a few minutes.",
+        )
+
+    # Map new engine output → format expected by the rest of the app
+    vendor = (
+        ocr_result.get("vendor_name")
+        or ocr_result.get("vendor")
+        or "Unknown Vendor"
+    )
+    amount = ocr_result.get("total_amount") or ocr_result.get("amount") or 0.0
+    items  = ocr_result.get("items") or []
+    gst    = (
+        (ocr_result.get("cgst") or 0.0) + (ocr_result.get("sgst") or 0.0)
+        + (ocr_result.get("igst") or 0.0)
+    )
+    detected_date = ocr_result.get("date")
+    saved_date = _normalize_scanned_bill_date(detected_date)
+    expense_item = _build_scanned_expense_label(vendor, items)
+    category = categorize_expense(_build_category_hint(vendor, items))
+    accuracy_score = _estimate_scan_accuracy(ocr_result, vendor, amount, detected_date, items, gst)
+
+    result = {
+        "vendor":      vendor,
+        "item_summary": expense_item,
+        "category":    category,
+        "amount":      amount,
+        "gst":         round(gst, 2),
+        "date":        saved_date.isoformat(),
+        "detected_date": detected_date,
+        "invoice_no":  ocr_result.get("invoice_no"),
+        "bill_type":   ocr_result.get("bill_type", "estimate"),
+        "items":       items,
+        "line_item_count": len(items),
+        "ocr_text":    ocr_result.get("ocr_text", ""),
+        "ocr_confidence": accuracy_score,
+        "accuracy_score": accuracy_score,
+        "source":      source,
+        "success":     ocr_result.get("success", False),
+        "_extraction_quality": ocr_result.get("_validation_warning") or "OK",
+        "ocr_engine":  ocr_result.get("_source", "unknown"),
+    }
+
+    # ── Save to DB if amount was detected and is valid ─────────────────────────────────
+    if amount and amount > 0 and amount < 100_000:  # Sanity check: Indian bills rarely exceed 1 lakh
         new_expense = models.Expense(
-            user_id=user_id,
-            item=result["vendor"],
-            amount=result["amount"],
-            gst=result.get("gst", 0.0),
-            date=result.get("date"),
-            category=category,
+            user_id  = user_id,
+            item     = expense_item,
+            amount   = amount,
+            gst      = gst,
+            date     = saved_date,
+            category = category,
         )
         db.add(new_expense)
         db.commit()
-        logger.info("Expense from bill saved: ₹%.2f  source=%s", result["amount"], source)
+        logger.info(
+            "Expense from bill saved: ₹%.2f  vendor=%s  source=%s",
+            amount, vendor, source,
+        )
 
     return result
 
 
 @app.post("/voice-expense", tags=["Upload"])
 async def voice_expense(
-    user_id: int,
+    user_id: int = Query(...),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
@@ -519,6 +614,178 @@ def dashboard(user_id: int, db: Session = Depends(get_db)):
     )
 
 
+def _format_currency(amount: float) -> str:
+    return f"₹{amount:,.2f}"
+
+
+def _compute_indian_income_tax(taxable_income: float) -> float:
+    slabs = [
+        (250_000, 0.00),
+        (250_000, 0.05),
+        (250_000, 0.10),
+        (250_000, 0.15),
+        (250_000, 0.20),
+        (250_000, 0.25),
+        (float("inf"), 0.30),
+    ]
+    remaining = max(0.0, taxable_income)
+    tax = 0.0
+    for slab_amount, rate in slabs:
+        if remaining <= 0:
+            break
+        amount = min(remaining, slab_amount)
+        tax += amount * rate
+        remaining -= amount
+    return round(tax, 2)
+
+
+def _build_tax_assistant_response(
+    user: models.User,
+    total_income: float,
+    total_expense: float,
+    gst_in: float,
+    gst_out: float,
+    question: str,
+) -> str:
+    profit = round(total_income - total_expense, 2)
+    estimated_tax = round(max(profit, 0.0) * 0.05, 2)
+    q = (question or "").strip().lower()
+    if not q:
+        return "Please ask a question about your tax, savings, or monthly business trends."
+
+    answers = []
+    answers.append(
+        f"Your current totals are: income { _format_currency(total_income) }, expenses { _format_currency(total_expense) }, profit { _format_currency(profit) }."
+    )
+
+    if any(term in q for term in ["save", "savings", "deduct", "deduction", "reduce tax"]):
+        answers.append(
+            "Tips to improve tax savings:\n"
+            "• Keep strong invoices for all business expenses and claim input GST credit where eligible.\n"
+            "• Use the presumptive taxation route if your business qualifies to reduce compliance burden.\n"
+            "• Maintain clean books and category-wise expenses to maximize allowable business deductions.\n"
+        )
+
+    if any(term in q for term in ["slab", "slabs", "tax rate", "new regime", "old regime"]):
+        answers.append(
+            "For small business profit, the most relevant comparison is presumptive tax at 5% of profit versus normal income tax slabs. "
+            "The current new-regime slabs are: 0% up to ₹2.5L, 5% on next ₹2.5L, 10% on next ₹2.5L, 15% on next ₹2.5L, 20% on next ₹2.5L, 25% on next ₹2.5L, and 30% above ₹15L."
+        )
+
+    if any(term in q for term in ["gst", "input gst", "output gst", "gst payable"]):
+        answers.append(
+            f"GST summary: output GST collected is { _format_currency(gst_out) } and input GST paid is { _format_currency(gst_in) }. "
+            f"Net GST payable is { _format_currency(max(gst_out - gst_in, 0.0)) }."
+        )
+
+    if any(term in q for term in ["profit", "tax", "estimate", "liable"]):
+        answers.append(
+            f"Under presumptive taxation, your estimated tax on profit is { _format_currency(estimated_tax) }. "
+            "This is a simple estimate based on 5% of profit."
+        )
+
+    if len(answers) == 1:
+        answers.append(
+            "For better guidance, share your exact question: examples include 'How much tax should I pay?', 'Can I save tax with more expenses?', or 'What do my monthly income and expense trends show?'."
+        )
+
+    return "\n\n".join(answers)
+
+
+def _get_month_periods(months: int) -> list[tuple[str, str]]:
+    today = calendar_date.today().replace(day=1)
+    periods = []
+    for i in range(months - 1, -1, -1):
+        month = today.month - i
+        year = today.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        periods.append((year, month))
+    return periods
+
+
+@app.get("/tax-savings", response_model=schemas.TaxSavings, tags=["Analytics"])
+def tax_savings(
+    gross_income: float = Query(..., ge=0.0),
+    business_expense: float = Query(0.0, ge=0.0),
+    deductions: float = Query(0.0, ge=0.0),
+):
+    taxable_income = max(0.0, gross_income - business_expense - deductions)
+    normal_tax = _compute_indian_income_tax(taxable_income)
+    presumptive_tax = round(taxable_income * 0.05, 2)
+    savings = round(max(normal_tax - presumptive_tax, 0.0), 2)
+    return schemas.TaxSavings(
+        gross_income=gross_income,
+        business_expense=business_expense,
+        deductions=deductions,
+        taxable_income=taxable_income,
+        normal_regime_tax=normal_tax,
+        presumptive_scheme_tax=presumptive_tax,
+        estimated_savings=savings,
+        note=(
+            "This is a rough estimate. Presumptive tax is estimated at 5% of profit. "
+            "Actual tax may vary by scheme eligibility, business type, and other deductions."
+        ),
+    )
+
+
+@app.post("/chat", response_model=schemas.ChatResponse, tags=["AI"])
+def chat_assistant(
+    user_id: int = Query(...),
+    payload: schemas.ChatRequest = None,
+    db: Session = Depends(get_db),
+):
+    user = crud.get_user_by_id(db, user_id)
+    incomes = crud.get_total_income(db, user_id)
+    expenses = crud.get_total_expense(db, user_id)
+    gst_in = db.query(func.sum(models.Expense.gst)).filter(models.Expense.user_id == user_id).scalar() or 0.0
+    gst_out = db.query(func.sum(models.Income.gst)).filter(models.Income.user_id == user_id).scalar() or 0.0
+    answer = _build_tax_assistant_response(user, incomes, expenses, gst_in, gst_out, payload.message)
+    recommendations = [
+        "Maintain organized expense invoices",
+        "Review monthly income vs expense trends",
+        "Claim valid input GST credits",
+    ]
+    return schemas.ChatResponse(answer=answer, recommendations=recommendations)
+
+
+@app.get("/monthly-trends", response_model=schemas.MonthlyTrends, tags=["Analytics"])
+def monthly_trends(
+    user_id: int = Query(...),
+    months: int = Query(default=6, ge=3, le=12),
+    db: Session = Depends(get_db),
+):
+    periods = _get_month_periods(months)
+    month_keys = [f"{year}-{month:02d}" for year, month in periods]
+    labels = [f"{calendar.month_abbr[month]} {str(year)[2:]}" for year, month in periods]
+
+    income_rows = db.query(
+        func.date_format(models.Income.date, "%Y-%m").label("period"),
+        func.sum(models.Income.amount).label("total"),
+    ).filter(
+        models.Income.user_id == user_id,
+        models.Income.date != None,
+    ).group_by("period").all()
+
+    expense_rows = db.query(
+        func.date_format(models.Expense.date, "%Y-%m").label("period"),
+        func.sum(models.Expense.amount).label("total"),
+    ).filter(
+        models.Expense.user_id == user_id,
+        models.Expense.date != None,
+    ).group_by("period").all()
+
+    income_map = {row.period: float(row.total or 0.0) for row in income_rows}
+    expense_map = {row.period: float(row.total or 0.0) for row in expense_rows}
+
+    income = [income_map.get(key, 0.0) for key in month_keys]
+    expense = [expense_map.get(key, 0.0) for key in month_keys]
+    profit = [round(i - e, 2) for (i, e) in zip(income, expense)]
+
+    return schemas.MonthlyTrends(labels=labels, income=income, expense=expense, profit=profit)
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # REPORTS
 # ══════════════════════════════════════════════════════════════════════════════
@@ -607,6 +874,75 @@ def _audio_extension(content_type: str, filename: str = "") -> str:
         if suffix in (".wav", ".mp3", ".m4a", ".ogg", ".webm", ".flac", ".aac", ".opus"):
             return suffix
     return ".webm"  # default for live MediaRecorder output
+
+
+def _normalize_scanned_bill_date(raw_date: str | None) -> calendar_date:
+    """Return a safe bill date for DB storage and dashboard display."""
+    if raw_date:
+        try:
+            return calendar_date.fromisoformat(raw_date)
+        except ValueError:
+            pass
+    return calendar_date.today()
+
+
+def _build_scanned_expense_label(vendor: str, items: list[dict]) -> str:
+    """Create a readable single-line label for scanned bills."""
+    vendor = (vendor or "").strip()
+    item_names = [str(item.get("name", "")).strip() for item in items if item.get("name")]
+
+    if vendor and vendor != "Unknown Vendor":
+        if item_names:
+            return f"{vendor} ({len(item_names)} item{'s' if len(item_names) != 1 else ''})"[:100]
+        return vendor[:100]
+
+    if item_names:
+        preview = ", ".join(item_names[:2])
+        if len(item_names) > 2:
+            preview += f" +{len(item_names) - 2} more"
+        return preview[:100]
+
+    return "Scanned Bill"
+
+
+def _build_category_hint(vendor: str, items: list[dict]) -> str:
+    """Combine vendor and line items so categorisation uses the bill contents."""
+    item_names = [str(item.get("name", "")).strip() for item in items if item.get("name")]
+    parts = [vendor] + item_names[:6]
+    return " ".join(part for part in parts if part and part != "Unknown Vendor")
+
+
+def _estimate_scan_accuracy(
+    ocr_result: dict,
+    vendor: str,
+    amount: float,
+    detected_date: str | None,
+    items: list[dict],
+    gst: float,
+) -> float:
+    """Heuristic quality score for UI feedback when the OCR engine has no native confidence."""
+    score = 0.0
+
+    if amount and amount > 0:
+        score += 35
+    if vendor and vendor != "Unknown Vendor":
+        score += 20
+    if detected_date:
+        score += 10
+    if items:
+        score += 20
+    if ocr_result.get("invoice_no"):
+        score += 5
+    if gst > 0:
+        score += 5
+    if (ocr_result.get("ocr_text") or "").strip():
+        score += 5
+    if ocr_result.get("_validation_warning"):
+        score -= 10
+    if ocr_result.get("error"):
+        score -= 25
+
+    return round(max(0.0, min(score, 100.0)), 1)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -817,7 +1153,7 @@ def email_report(
     Email a generated report PDF to any address.
     report_type: 'financial' | 'itr4' | 'itr3'
     """
-    from utils.email_service import (
+    from email_service import (
         send_report_email,
         build_itr_email_body,
         build_financial_summary_email_body,
@@ -935,4 +1271,3 @@ def get_govt_email_addresses():
             "your CA or for personal records only."
         ),
     }
-
