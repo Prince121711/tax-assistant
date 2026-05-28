@@ -166,7 +166,7 @@ class ExpenseResponse(BaseModel):
     user_id:  int
     item:     str
     amount:   float
-    date:     date
+    date:     Optional[date]
     gst:      float
     category: Optional[str]
 
@@ -221,3 +221,30 @@ class DashboardSummary(BaseModel):
     total_expense: float
     profit:        float
     tax:           float
+
+
+class ChatRequest(BaseModel):
+    message: str = Field(..., min_length=1, max_length=500)
+
+
+class ChatResponse(BaseModel):
+    answer: str
+    recommendations: list[str] = []
+
+
+class TaxSavings(BaseModel):
+    gross_income: float
+    business_expense: float
+    deductions: float
+    taxable_income: float
+    normal_regime_tax: float
+    presumptive_scheme_tax: float
+    estimated_savings: float
+    note: str
+
+
+class MonthlyTrends(BaseModel):
+    labels: list[str]
+    income: list[float]
+    expense: list[float]
+    profit: list[float]

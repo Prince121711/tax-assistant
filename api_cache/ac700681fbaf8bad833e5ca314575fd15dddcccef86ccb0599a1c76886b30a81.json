@@ -1,0 +1,67 @@
+{
+  "vendor_name": "MM TRADERS",
+  "vendor_phone": "9894512865",
+  "vendor_gstin": "33AVRPM5166B1ZJ",
+  "invoice_no": "IN2026/823",
+  "date": "2026-05-21",
+  "bill_type": "tax_invoice",
+  "items": [
+    {
+      "name": "MUTTON MASALA",
+      "qty": 0.2,
+      "unit": "GM",
+      "rate": 357.15,
+      "amount": 71.43
+    },
+    {
+      "name": "CURRY POWDER",
+      "qty": 0.4,
+      "unit": "GM",
+      "rate": 333.32,
+      "amount": 133.33
+    },
+    {
+      "name": "SAMBAR POWDER",
+      "qty": 0.2,
+      "unit": "GM",
+      "rate": 309.5,
+      "amount": 61.9
+    },
+    {
+      "name": "TURMERIC POWDER",
+      "qty": 0.2,
+      "unit": "GM",
+      "rate": 238.1,
+      "amount": 47.62
+    },
+    {
+      "name": "APPALAM NO 4SPL",
+      "qty": 1,
+      "unit": "GM",
+      "rate": 180.0,
+      "amount": 180.0
+    },
+    {
+      "name": "BAJJI BONDA PDR",
+      "qty": 1,
+      "unit": "GM",
+      "rate": 113.33,
+      "amount": 113.33
+    },
+    {
+      "name": "SAKTHI BENGAL GRAM",
+      "qty": 1,
+      "unit": "GM",
+      "rate": 98.1,
+      "amount": 98.1
+    }
+  ],
+  "subtotal": 705.71,
+  "discount": null,
+  "cgst": 13.14,
+  "sgst": 13.14,
+  "igst": null,
+  "total_tax": 26.28,
+  "total_amount": 732.0,
+  "currency": "INR"
+}

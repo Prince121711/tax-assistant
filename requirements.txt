@@ -22,12 +22,12 @@ python-dotenv==1.0.1               # Loads .env file for DATABASE_URL, secrets
 # ── OCR (Bill Scanning) ───────────────────────────────────────
 easyocr==1.7.1                     # OCR engine used in ocr.py
 opencv-python==4.9.0.80            # Image preprocessing (grayscale, threshold, deskew)
-numpy==1.26.4                      # Required by OpenCV and EasyOCR
+numpy<2                            # Constrain to 1.x (numpy 2.x incompatible with torch/whisper)
 Pillow==10.3.0                     # Image handling support
 
 # ── Voice Transcription ───────────────────────────────────────
-openai-whisper==20231117           # Speech-to-text used in voice.py
-torch==2.3.0                       # Required backend for Whisper
+openai-whisper>=20240930           # Speech-to-text used in voice.py (uses pre-built wheels)
+torch>=2.0,<2.5                    # Required backend for Whisper (compatible with numpy 1.x)
 
 # ── Bank Statement Parsing ────────────────────────────────────
 pdfplumber==0.11.1                 # PDF text extraction used in bank_parser.py

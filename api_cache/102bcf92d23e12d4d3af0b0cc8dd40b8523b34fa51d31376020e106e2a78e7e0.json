@@ -1,0 +1,116 @@
+{
+  "vendor_name": "Abhinaya Provisions",
+  "vendor_phone": "9842459105",
+  "vendor_gstin": null,
+  "invoice_no": "Q/23590",
+  "date": "2026-05-10",
+  "bill_type": "estimate",
+  "items": [
+    {
+      "name": "Rice Flour",
+      "qty": 1,
+      "unit": "kg",
+      "rate": 47.0,
+      "amount": 47.0
+    },
+    {
+      "name": "Rs 20 Surf Soap",
+      "qty": 6,
+      "unit": null,
+      "rate": 18.5,
+      "amount": 111.0
+    },
+    {
+      "name": "3 Roses",
+      "qty": 6,
+      "unit": "g",
+      "rate": 41.0,
+      "amount": 246.0
+    },
+    {
+      "name": "5rs 3 Roses",
+      "qty": 1,
+      "unit": "pack",
+      "rate": 105.0,
+      "amount": 105.0
+    },
+    {
+      "name": "Nizam 1 Rupee",
+      "qty": 1,
+      "unit": null,
+      "rate": 43.0,
+      "amount": 43.0
+    },
+    {
+      "name": "20 VVD",
+      "qty": 15,
+      "unit": "ml",
+      "rate": 18.5,
+      "amount": 277.5
+    },
+    {
+      "name": "10rs Cinthol",
+      "qty": 1,
+      "unit": "pack",
+      "rate": 110.0,
+      "amount": 110.0
+    },
+    {
+      "name": "10rs Milk Bikis",
+      "qty": 1,
+      "unit": "pack",
+      "rate": 111.0,
+      "amount": 111.0
+    },
+    {
+      "name": "5rs Milk Bikis",
+      "qty": 1,
+      "unit": "pack",
+      "rate": 138.0,
+      "amount": 138.0
+    },
+    {
+      "name": "TVS Oil",
+      "qty": 4,
+      "unit": "ml",
+      "rate": 83.0,
+      "amount": 332.0
+    },
+    {
+      "name": "Gold Filter",
+      "qty": 2,
+      "unit": null,
+      "rate": 109.0,
+      "amount": 218.0
+    },
+    {
+      "name": "Intimate",
+      "qty": 2,
+      "unit": null,
+      "rate": 106.0,
+      "amount": 212.0
+    },
+    {
+      "name": "Mini Gold",
+      "qty": 2,
+      "unit": null,
+      "rate": 65.0,
+      "amount": 130.0
+    },
+    {
+      "name": "Previous Balance",
+      "qty": 1,
+      "unit": null,
+      "rate": 325.0,
+      "amount": 325.0
+    }
+  ],
+  "subtotal": null,
+  "discount": null,
+  "cgst": null,
+  "sgst": null,
+  "igst": null,
+  "total_tax": null,
+  "total_amount": 2406.0,
+  "currency": "INR"
+}

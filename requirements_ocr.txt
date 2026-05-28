@@ -1,0 +1,19 @@
+# TaxShield OCR Engine — requirements
+# Install: pip install -r requirements_ocr.txt
+
+# Core OCR
+paddleocr==2.7.3
+paddlepaddle==2.5.2
+
+# Image processing
+opencv-python==4.9.0.80
+Pillow==10.3.0
+numpy<2                            # Constrain to 1.x (numpy 2.x incompatible with torch)
+
+# HTTP (Claude API calls)
+requests==2.31.0
+
+# FastAPI (already in your project)
+fastapi
+python-multipart
+uvicorn

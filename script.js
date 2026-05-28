@@ -169,6 +169,16 @@ function setHTML(id, html) {
   if (el) el.innerHTML = html;
 }
 
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;",
+  }[char]));
+}
+
 // ── Navigation ────────────────────────────────────────────────────────────────
 function navigate(sectionId) {
   document.querySelectorAll(".section").forEach(s => s.classList.remove("active"));
@@ -183,10 +193,150 @@ function navigate(sectionId) {
   // Auto-load data for relevant sections
   if (sectionId === "dashboard") loadDashboard();
   if (sectionId === "analyze")   loadAnalysis();
+  if (sectionId === "assistant") loadAssistant();
+}
+
+// ── Tax Assistant / Trends ───────────────────────────────────────────────────
+let dashChart = null;
+let trendChart = null;
+
+async function loadAssistant() {
+  try {
+    await loadMonthlyTrends(6);
+    const chatWindow = document.getElementById("assistant-chat-window");
+    if (chatWindow && chatWindow.children.length === 0) {
+      _appendAssistantMessage(
+        "Welcome to TaxShield! Ask me about tax estimates, savings ideas, or your monthly business trends."
+      );
+    }
+  } catch (err) {
+    toast.error("Could not load trend charts: " + err.message);
+  }
+}
+
+function _appendAssistantMessage(message, isUser = false) {
+  const container = document.getElementById("assistant-chat-window");
+  if (!container) return;
+  const bubble = document.createElement("div");
+  bubble.style.marginBottom = "0.75rem";
+  bubble.style.padding = "0.9rem 1rem";
+  bubble.style.borderRadius = "0.85rem";
+  bubble.style.background = isUser ? "rgba(232,160,32,0.12)" : "rgba(27,30,39,0.95)";
+  bubble.style.color = isUser ? "var(--text-primary)" : "#e5e7eb";
+  bubble.style.border = isUser ? "1px solid rgba(232,160,32,0.18)" : "1px solid rgba(255,255,255,0.08)";
+  bubble.innerHTML = `<strong>${isUser ? "You" : "TaxShield"}:</strong><p style=\"margin:0.6rem 0 0;white-space:pre-wrap;line-height:1.5\">${escapeHTML(message)}</p>`;
+  container.appendChild(bubble);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function sendTaxChatMessage(btn) {
+  const input = document.getElementById("assistant-chat-input");
+  const question = input?.value.trim();
+  if (!question) return toast.warning("Please enter a question for the tax assistant.");
+
+  setLoading(btn, true);
+  _appendAssistantMessage(question, true);
+  if (input) input.value = "";
+
+  try {
+    const payload = { message: question };
+    const response = await api.post(`/chat?user_id=${CONFIG.USER_ID}`, payload);
+    _appendAssistantMessage(response.answer || "Sorry, I could not compute an answer.");
+  } catch (err) {
+    _appendAssistantMessage("There was a problem connecting to the assistant. Please try again.");
+    toast.error("Tax assistant error: " + err.message);
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+async function calculateTaxSavings(btn) {
+  const grossIncome   = parseFloat(getVal("tax-gross-income")) || 0;
+  const businessExpense = parseFloat(getVal("tax-business-expense")) || 0;
+  const deductions    = parseFloat(getVal("tax-deductions")) || 0;
+
+  if (grossIncome <= 0) return toast.warning("Enter your estimated gross income.");
+
+  setLoading(btn, true);
+  try {
+    const data = await api.get(`/tax-savings?gross_income=${grossIncome}&business_expense=${businessExpense}&deductions=${deductions}`);
+    renderTaxSavingsResult(data);
+  } catch (err) {
+    toast.error("Could not calculate tax savings: " + err.message);
+  } finally {
+    setLoading(btn, false);
+  }
+}
+
+function renderTaxSavingsResult(data) {
+  const resultEl = document.getElementById("tax-savings-result");
+  if (!resultEl) return;
+  resultEl.innerHTML = `
+    <div class="panel" style="padding:1rem;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);">
+      <p><strong>Taxable income:</strong> ${fmt.currency(data.taxable_income)}</p>
+      <p><strong>Normal regime tax:</strong> ${fmt.currency(data.normal_regime_tax)}</p>
+      <p><strong>Presumptive tax estimate:</strong> ${fmt.currency(data.presumptive_scheme_tax)}</p>
+      <p><strong>Estimated savings:</strong> ${fmt.currency(data.estimated_savings)}</p>
+      <p style="margin-top:0.75rem;color:var(--text-secondary);">${escapeHTML(data.note)}</p>
+    </div>`;
+}
+
+async function loadMonthlyTrends(months = 6) {
+  const response = await api.get(`/monthly-trends?user_id=${CONFIG.USER_ID}&months=${months}`);
+  const ctx = document.getElementById("trend-chart")?.getContext("2d");
+  if (!ctx) return;
+  if (trendChart) trendChart.destroy();
+
+  trendChart = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels: response.labels,
+      datasets: [
+        {
+          label: "Income",
+          data: response.income,
+          borderColor: "rgba(34,197,94,0.9)",
+          backgroundColor: "rgba(34,197,94,0.15)",
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+        },
+        {
+          label: "Expense",
+          data: response.expense,
+          borderColor: "rgba(239,68,68,0.9)",
+          backgroundColor: "rgba(239,68,68,0.13)",
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+        },
+        {
+          label: "Profit",
+          data: response.profit,
+          borderColor: "rgba(232,160,32,0.9)",
+          backgroundColor: "rgba(232,160,32,0.18)",
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { position: "top" } },
+      scales: {
+        x: { ticks: { color: "#8b98b8" }, grid: { color: "rgba(255,255,255,0.05)" } },
+        y: {
+          ticks: { color: "#8b98b8", callback: (value) => `₹${(value / 1000).toFixed(0)}k` },
+          grid: { color: "rgba(255,255,255,0.05)" },
+        },
+      },
+    },
+  });
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-let dashChart = null;
 
 async function loadDashboard() {
   try {
@@ -513,12 +663,42 @@ async function _processBillFile(file, btn) {
   try {
     const data = await api.upload(`/scan-bill?user_id=${CONFIG.USER_ID}`, fd);
     const accuracy = data.accuracy_score || 0;
+    const items = Array.isArray(data.items) ? data.items : [];
+    const qualityClass = accuracy < 60 ? "risk-HIGH" : "risk-LOW";
+    const qualityNote = data._extraction_quality && data._extraction_quality !== "OK"
+      ? `<div class="alert-box" style="margin-top:0.75rem">⚠ ${escapeHTML(data._extraction_quality)}</div>`
+      : "";
+    const itemMarkup = items.length
+      ? `
+        <div class="result-card" style="margin-top:0.75rem">
+          <div class="result-row">
+            <span class="result-key">Line Items</span>
+            <span class="result-value">${items.length}</span>
+          </div>
+          ${items.map((item, index) => `
+            <div class="result-row">
+              <span class="result-key">${index + 1}. ${escapeHTML(item.name || "Item")}</span>
+              <span class="result-value">
+                ${(item.qty ? `${escapeHTML(item.qty)} × ` : "") + (item.rate ? `${fmt.currency(item.rate)} = ` : "")}${fmt.currency(item.amount)}
+              </span>
+            </div>`).join("")}
+        </div>`
+      : "";
+    const savedSuccessfully = Number(data.amount || 0) > 0;
 
     setHTML("ocr-result", `
       <div class="result-card">
         <div class="result-row">
           <span class="result-key">Vendor</span>
-          <span class="result-value">${data.vendor || "Unknown"}</span>
+          <span class="result-value">${escapeHTML(data.vendor || "Unknown")}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">Saved As</span>
+          <span class="result-value">${escapeHTML(data.item_summary || "Scanned Bill")}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">Category</span>
+          <span class="result-value">${escapeHTML(data.category || "Others")}</span>
         </div>
         <div class="result-row">
           <span class="result-key">Amount</span>
@@ -530,7 +710,15 @@ async function _processBillFile(file, btn) {
         </div>
         <div class="result-row">
           <span class="result-key">Date</span>
-          <span class="result-value">${data.date || "Not detected"}</span>
+          <span class="result-value">${data.detected_date ? fmt.date(data.detected_date) : fmt.date(data.date)}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">Invoice No</span>
+          <span class="result-value">${escapeHTML(data.invoice_no || "Not detected")}</span>
+        </div>
+        <div class="result-row">
+          <span class="result-key">Bill Type</span>
+          <span class="result-value">${escapeHTML(data.bill_type || "estimate")}</span>
         </div>
         <div class="result-row">
           <span class="result-key">OCR Confidence</span>
@@ -538,15 +726,24 @@ async function _processBillFile(file, btn) {
         </div>
         <div class="result-row">
           <span class="result-key">Accuracy Score</span>
-          <span class="result-value ${accuracy < 60 ? "risk-HIGH" : "risk-LOW"}">${fmt.percent(accuracy)}</span>
+          <span class="result-value ${qualityClass}">${fmt.percent(accuracy)}</span>
         </div>
       </div>
+      ${itemMarkup}
       ${accuracy < 60
         ? `<div class="alert-box" style="margin-top:0.75rem">⚠ Low OCR accuracy. Try better lighting or a clearer image.</div>`
-        : `<div class="alert-box success" style="margin-top:0.75rem">✓ Bill scanned and saved as expense.</div>`}
+        : savedSuccessfully
+          ? `<div class="alert-box success" style="margin-top:0.75rem">✓ Bill scanned and saved to your expenses.</div>`
+          : `<div class="alert-box" style="margin-top:0.75rem">⚠ Bill was read partially, but no amount was saved.</div>`}
+      ${qualityNote}
     `);
 
-    toast.success(`Bill scanned — ${fmt.currency(data.amount)} detected.`);
+    await Promise.allSettled([loadExpenseList(), loadDashboard()]);
+    if (savedSuccessfully) {
+      toast.success(`Bill scanned — ${fmt.currency(data.amount)} detected.`);
+    } else {
+      toast.warning("Bill scanned, but the total amount could not be saved.");
+    }
   } catch (err) {
     toast.error("Bill scan failed: " + err.message);
   } finally {
